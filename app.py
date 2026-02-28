@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv("email.env")
 import os
 import csv
 import threading
