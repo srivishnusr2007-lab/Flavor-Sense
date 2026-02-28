@@ -1,1 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flavorsense – Rate Today's Menu</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
 
+<div class="container">
+
+  <header class="fs-header">
+    <img src="/static/logo.jpg" class="fs-logo" alt="Flavorsense Logo">
+    <h1 class="fs-title">Flavor<span>sense</span></h1>
+    {% if student_email %}
+      <p class="fs-sub">Logged in as <strong style="color:var(--amber)">{{ student_email }}</strong> — <a href="/logout">Logout</a></p>
+    {% else %}
+      <p class="fs-sub"><a href="/register">Register / Login</a> to save your feedback.</p>
+    {% endif %}
+    <div class="divider"></div>
+  </header>
+
+  <!-- Today's Menu -->
+  <div class="card">
+    <h2><span class="icon">🍛</span> Today's Menu</h2>
+    <div class="menu-item">
+      <span class="menu-label">Breakfast</span>
+      <span class="menu-value">{{ menu.breakfast }}</span>
+    </div>
+    <div class="menu-item">
+      <span class="menu-label">Lunch</span>
+      <span class="menu-value">{{ menu.lunch }}</span>
+    </div>
+    <div class="menu-item">
+      <span class="menu-label">Dinner</span>
+      <span class="menu-value">{{ menu.dinner }}</span>
+    </div>
+  </div>
+
+  <!-- Rate Items -->
+  <div class="card">
+    <h2><span class="icon">⭐</span> Rate Today's Food</h2>
+    <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">Tap an emoji to share how you felt. You can rate each item once.</p>
+    <table id="ratingTable">
+      <thead>
+        <tr>
+          <th>Food Item</th>
+          <th>Your Rating</th>
+        </tr>
+      </thead>
+      <tbody id="ratingBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Summary -->
+  <div class="card">
+    <h2><span class="icon">📊</span> Today's Feedback Summary</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Food Item</th>
+          <th>Avg. Rating</th>
+          <th>Votes</th>
+        </tr>
+      </thead>
+      <tbody id="summaryBody">
+        <tr><td colspan="3" style="color:var(--muted); font-size:0.85rem; text-align:center; padding:20px;">No ratings yet today.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer-link">
+    <a href="/staff-login">Staff Login →</a>
+  </div>
+
+</div>
+
+<!-- Popup -->
+<div id="popup" class="popup hidden">
+  <div class="popup-box">✨ Rating saved — thank you!</div>
+</div>
+
+<script>
+const menuStr   = "{{ menu.breakfast }},{{ menu.lunch }},{{ menu.dinner }}";
+const menuItems = menuStr.split(",").map(s => s.trim()).filter(Boolean);
+const tbody     = document.getElementById("ratingBody");
+
+const EMOJIS = [
+  { val: 1, emoji: "😡", label: "Terrible" },
+  { val: 2, emoji: "😐", label: "Meh" },
+  { val: 3, emoji: "🙂", label: "Okay" },
+  { val: 4, emoji: "😋", label: "Good" },
+  { val: 5, emoji: "🤩", label: "Amazing" }
+];
+
+menuItems.forEach(item => {
+  const emojisHtml = EMOJIS.map(e =>
+    `<span class="emoji" title="${e.label}" data-item="${item}" data-val="${e.val}">${e.emoji}</span>`
+  ).join("");
+
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td style="font-weight:500">${item}</td>
+    <td><div class="emoji-row">${emojisHtml}</div></td>
+  `;
+  tbody.appendChild(tr);
+});
+
+// ── Popup ──
+function showPopup() {
+  const p = document.getElementById("popup");
+  p.classList.remove("hidden");
+  setTimeout(() => p.classList.add("hidden"), 1500);
+}
+
+// ── Rate ──
+async function rate(item, rating) {
+  if (sessionStorage.getItem("rated_" + item)) return;
+
+  try {
+    await fetch("/rate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item, rating, date: today() })
+    });
+
+    sessionStorage.setItem("rated_" + item, rating);
+    showPopup();
+
+    // Disable emojis for this item
+    document.querySelectorAll(`[data-item="${item}"]`).forEach(e => {
+      e.classList.add("disabled");
+      if (parseInt(e.dataset.val) === rating) e.classList.add("selected");
+    });
+
+    loadSummary();
+  } catch(err) {
+    console.error("Rating failed:", err);
+  }
+}
+
+// ── Today's date ──
+function today() {
+  return new Date().toISOString().split("T")[0];
+}
+
+// ── Events ──
+document.addEventListener("click", e => {
+  if (e.target.classList.contains("emoji") && !e.target.classList.contains("disabled")) {
+    rate(e.target.dataset.item, parseInt(e.target.dataset.val));
+  }
+});
+
+// ── Restore session state ──
+menuItems.forEach(item => {
+  const rated = sessionStorage.getItem("rated_" + item);
+  if (rated) {
+    document.querySelectorAll(`[data-item="${item}"]`).forEach(e => {
+      e.classList.add("disabled");
+      if (parseInt(e.dataset.val) === parseInt(rated)) e.classList.add("selected");
+    });
+  }
+});
+
+// ── Load Summary ──
+async function loadSummary() {
+  try {
+    const res  = await fetch("/ratings/" + today());
+    const data = await res.json();
+    const tbody = document.getElementById("summaryBody");
+
+    if (!Object.keys(data).length) {
+      tbody.innerHTML = `<tr><td colspan="3" style="color:var(--muted);font-size:.85rem;text-align:center;padding:20px;">No ratings yet today.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = Object.entries(data).map(([item, votes]) => {
+      const avg = (votes.reduce((a,b)=>a+b,0)/votes.length).toFixed(1);
+      return `
+        <tr>
+          <td style="font-weight:500">${item}</td>
+          <td><span class="avg-badge">★ ${avg}</span></td>
+          <td style="color:var(--muted)">${votes.length} vote${votes.length !== 1 ? 's' : ''}</td>
+        </tr>
+      `;
+    }).join("");
+  } catch(e) {
+    console.error("Summary load failed:", e);
+  }
+}
+
+loadSummary();
+</script>
+
+</body>
+</html>
