@@ -1,1 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flavorsense – Staff Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
 
+<div class="container">
+
+  <!-- Staff Nav -->
+  <div class="staff-nav" style="padding-top:32px;">
+    <div>
+      <p style="color:var(--muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Staff Dashboard</p>
+      <h1 class="fs-title" style="font-size:2rem;">Flavor<span style="color:var(--flame)">sense</span></h1>
+    </div>
+    <a href="/logout" class="btn btn-secondary btn-sm">Logout</a>
+  </div>
+
+  {% if menu_updated %}
+  <div class="staff-message">✅ Menu updated successfully!</div>
+  {% endif %}
+
+  {% if message %}
+  <div class="staff-message">📧 {{ message }}</div>
+  {% endif %}
+
+  <div class="cards-grid" style="margin-top:24px;">
+
+    <!-- Update Menu -->
+    <div class="card">
+      <h2><span class="icon">📋</span> Update Menu</h2>
+      <form method="POST" action="/update-menu">
+        <div class="menu-edit-row">
+          <label>Breakfast</label>
+          <input type="text" name="breakfast" value="{{ menu.breakfast }}" required>
+        </div>
+        <div class="menu-edit-row">
+          <label>Lunch</label>
+          <input type="text" name="lunch" value="{{ menu.lunch }}" required>
+        </div>
+        <div class="menu-edit-row">
+          <label>Dinner</label>
+          <input type="text" name="dinner" value="{{ menu.dinner }}" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:8px;">
+          💾 Save Menu
+        </button>
+      </form>
+    </div>
+
+    <!-- Send Reminders -->
+    <div class="card">
+      <h2><span class="icon">📧</span> Send Reminders</h2>
+      <p style="font-size:0.88rem;color:var(--muted);margin-bottom:20px;">
+        Email all students who haven't submitted a rating today.
+      </p>
+      <form method="POST" action="/send-reminders">
+        <button type="submit" class="btn btn-primary">
+          ✉ Send Email Reminders
+        </button>
+      </form>
+      <p style="font-size:0.78rem;color:var(--muted);margin-top:12px;">
+        ⚠ Requires EMAIL_USER and EMAIL_PASS environment variables.
+      </p>
+    </div>
+
+  </div>
+
+  <!-- Reviews Table -->
+  <div class="card" style="margin-top:20px; overflow-x:auto;">
+    <h2><span class="icon">📊</span> Weekly Review Tracker</h2>
+    <p style="font-size:0.82rem; color:var(--muted); margin-bottom:16px;">
+      Shows whether each student submitted a rating on each day of the week.
+    </p>
+
+    {% if reviews %}
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Mon</th>
+          <th>Tue</th>
+          <th>Wed</th>
+          <th>Thu</th>
+          <th>Fri</th>
+          <th>Sat</th>
+          <th>Sun</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reviews %}
+        <tr>
+          <td style="font-weight:500;font-size:0.85rem;">{{ r.email }}</td>
+          {% for day in ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"] %}
+            <td>
+              {% if r[day] and r[day].lower() == "yes" %}
+                <span class="yes-badge">✓ Yes</span>
+              {% else %}
+                <span class="no-badge">✗ No</span>
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--muted);font-size:0.88rem;text-align:center;padding:24px 0;">
+      No students registered yet.
+    </p>
+    {% endif %}
+  </div>
+
+  <div class="footer-link">
+    <a href="/student">View Student Portal →</a>
+  </div>
+
+</div>
+
+</body>
+</html>
