@@ -1,6 +1,7 @@
+
+import os
 from dotenv import load_dotenv
 load_dotenv("email.env")
-import os
 import csv
 import threading
 from datetime import datetime, timezone
