@@ -1,1 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flavorsense – Welcome</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
 
+<div class="container" style="max-width:520px;">
+
+  <header class="fs-header">
+    <img src="/static/logo.jpg" class="fs-logo" alt="Flavorsense Logo">
+    <h1 class="fs-title">Flavor<span>sense</span></h1>
+    <p class="fs-sub">Your daily mess, rated honestly.</p>
+    <div class="divider"></div>
+  </header>
+
+  <div class="card" style="animation-delay:0.1s;">
+
+    <!-- Tab Bar -->
+    <div class="tab-bar" id="tabBar">
+      <button class="tab-btn {% if show == 'register' %}active{% endif %}" onclick="switchTab('register')">Register</button>
+      <button class="tab-btn {% if show == 'login' %}active{% endif %}"   onclick="switchTab('login')">Login</button>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-error">⚠ {{ error }}</div>
+    {% endif %}
+
+    <!-- REGISTER FORM -->
+    <div id="registerForm" style="display: {% if show == 'login' %}none{% else %}block{% endif %};">
+      <form method="POST" action="/register">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" name="name" placeholder="e.g. Arjun Sharma" required>
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" name="email" placeholder="your@college.edu" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" name="password" placeholder="Create a password" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px;">
+          🍽 Create Account
+        </button>
+      </form>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="loginForm" style="display: {% if show == 'login' %}block{% else %}none{% endif %};">
+      <form method="POST" action="/student-login">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" name="email" placeholder="your@college.edu" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" name="password" placeholder="Your password" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px;">
+          🔓 Login
+        </button>
+      </form>
+    </div>
+
+  </div>
+
+  <div class="footer-link">
+    Staff? <a href="/staff-login">Staff Login →</a>
+  </div>
+
+</div>
+
+<script>
+function switchTab(tab) {
+  const tabs = document.querySelectorAll('.tab-btn');
+  const reg  = document.getElementById('registerForm');
+  const log  = document.getElementById('loginForm');
+  tabs.forEach(t => t.classList.remove('active'));
+
+  if (tab === 'register') {
+    tabs[0].classList.add('active');
+    reg.style.display = 'block';
+    log.style.display = 'none';
+  } else {
+    tabs[1].classList.add('active');
+    log.style.display = 'block';
+    reg.style.display = 'none';
+  }
+}
+</script>
+
+</body>
+</html>
