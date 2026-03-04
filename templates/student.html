@@ -88,10 +88,6 @@
     </p>
   </div>
 
-  <div class="footer-link">
-    <a href="/staff-login">Staff Login →</a>
-  </div>
-
 </div>
 
 <!-- Popup -->
@@ -209,8 +205,8 @@ let chartInstance = null;
 
 async function loadYearlyChart() {
   try {
-    const res   = await fetch("/ratings-summary");
-    const data  = await res.json();
+    const res     = await fetch("/ratings-summary");
+    const data    = await res.json();
     const dishes  = Object.keys(data);
     const ratings = Object.values(data);
 
@@ -230,9 +226,9 @@ async function loadYearlyChart() {
     ];
 
     if (chartInstance) {
-      chartInstance.data.labels   = dishes;
-      chartInstance.data.datasets[0].data             = ratings;
-      chartInstance.data.datasets[0].backgroundColor  = dishes.map((_, i) => colors[i % colors.length]);
+      chartInstance.data.labels  = dishes;
+      chartInstance.data.datasets[0].data            = ratings;
+      chartInstance.data.datasets[0].backgroundColor = dishes.map((_, i) => colors[i % colors.length]);
       chartInstance.update();
       return;
     }
