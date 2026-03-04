@@ -27,6 +27,8 @@
   {% endif %}
 
   <div class="cards-grid" style="margin-top:24px;">
+
+    <!-- Update Menu -->
     <div class="card">
       <h2><span class="icon">📋</span> Update Menu</h2>
       <form method="POST" action="/update-menu">
@@ -48,6 +50,7 @@
       </form>
     </div>
 
+    <!-- Send Reminders -->
     <div class="card">
       <h2><span class="icon">📧</span> Send Reminders</h2>
       <p style="font-size:0.88rem;color:var(--muted);margin-bottom:20px;">
@@ -62,10 +65,35 @@
         ⚠ Requires EMAIL_USER and EMAIL_PASS environment variables.
       </p>
     </div>
+
   </div>
 
+  <!-- Download Ratings CSV -->
+  <div class="card" style="margin-top:20px;">
+    <h2 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <span><span class="icon">📥</span> Ratings Data</span>
+      <a href="/download-ratings" class="btn btn-secondary btn-sm">⬇ Download CSV</a>
+    </h2>
+    <p style="font-size:0.85rem; color:var(--muted); margin-top:8px;">
+      Download the full dish-wise ratings CSV with date, dish name, and rating score for every submission.
+    </p>
+  </div>
+
+  <!-- Dish Ratings Bar Chart -->
+  <div class="card" style="margin-top:20px;">
+    <h2><span class="icon">📊</span> Dish Ratings Overview</h2>
+    <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">
+      Average rating per dish across all time.
+    </p>
+    <canvas id="staffRatingsChart" height="140"></canvas>
+    <p id="chartEmpty" style="display:none; color:var(--muted); font-size:0.88rem; text-align:center; padding:24px 0;">
+      No ratings data yet.
+    </p>
+  </div>
+
+  <!-- Weekly Review Tracker -->
   <div class="card" style="margin-top:20px; overflow-x:auto;">
-    <h2><span class="icon">📊</span> Weekly Review Tracker</h2>
+    <h2><span class="icon">🗓</span> Weekly Review Tracker</h2>
     <p style="font-size:0.82rem; color:var(--muted); margin-bottom:16px;">
       Shows whether each student submitted a rating on each day of the week.
     </p>
@@ -74,7 +102,13 @@
       <thead>
         <tr>
           <th>Email</th>
-          <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th>
+          <th>Mon</th>
+          <th>Tue</th>
+          <th>Wed</th>
+          <th>Thu</th>
+          <th>Fri</th>
+          <th>Sat</th>
+          <th>Sun</th>
         </tr>
       </thead>
       <tbody>
@@ -105,6 +139,70 @@
     <a href="/student">View Student Portal →</a>
   </div>
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+async function loadStaffChart() {
+  try {
+    const res  = await fetch("/ratings-summary");
+    const data = await res.json();
+    const dishes  = Object.keys(data);
+    const ratings = Object.values(data);
+
+    if (!dishes.length) {
+      document.getElementById("chartEmpty").style.display = "block";
+      return;
+    }
+
+    const colors = [
+      "#FF4C1C","#FFB347","#4CAF50","#5C6BC0",
+      "#E53935","#FF9800","#558B2F","#795548",
+      "#FF7043","#66BB6A","#7986CB","#BCAAA4"
+    ];
+
+    new Chart(document.getElementById("staffRatingsChart"), {
+      type: "bar",
+      data: {
+        labels: dishes,
+        datasets: [{
+          label: "Avg Rating (out of 5)",
+          data: ratings,
+          backgroundColor: dishes.map((_, i) => colors[i % colors.length]),
+          borderRadius: 8,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.y} / 5`
+            }
+          }
+        },
+        scales: {
+          y: {
+            min: 0,
+            max: 5,
+            ticks: { stepSize: 1, color: "#8C7B6B" },
+            grid: { color: "rgba(0,0,0,0.06)" }
+          },
+          x: {
+            ticks: { color: "#4A2C1A", font: { weight: "600" } },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  } catch(e) {
+    console.error("Chart load failed:", e);
+  }
+}
+
+loadStaffChart();
+</script>
 
 </body>
 </html>
