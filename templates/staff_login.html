@@ -8,8 +8,9 @@
 </head>
 <body>
 
-<div class="container" style="max-width:440px;">
+<div class="bg-pattern"></div>
 
+<div class="container" style="max-width:440px;">
   <header class="fs-header">
     <img src="/static/logo.jpg" class="fs-logo" alt="Flavorsense Logo">
     <h1 class="fs-title">Flavor<span>sense</span></h1>
@@ -19,11 +20,9 @@
 
   <div class="card">
     <h2><span class="icon">🔐</span> Staff Login</h2>
-
     {% if error %}
     <div class="alert alert-error">⚠ {{ error }}</div>
     {% endif %}
-
     <form method="POST" action="/staff-login">
       <div class="form-group">
         <label>Username</label>
@@ -42,7 +41,6 @@
   <div class="footer-link">
     <a href="/">← Back to Student Portal</a>
   </div>
-
 </div>
 
 </body>
