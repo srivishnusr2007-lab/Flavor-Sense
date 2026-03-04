@@ -253,11 +253,10 @@ def student_login():
                            error="No account found with that email. Please register.", show="login")
 
 
-@app.route("/logout")
-def logout():
-    session.pop("student_email", None)
-    session.pop("student_name", None)
-    return redirect(url_for("register"))
+@app.route("/staff-logout")
+def staff_logout():
+    session.clear()
+    return redirect(url_for("staff_login"))
 
 
 # ─────────────────────────────────────────
