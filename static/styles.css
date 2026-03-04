@@ -32,11 +32,11 @@ body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-}
-
-.bg-pattern svg {
-  width: 100%;
-  height: 100%;
+  background-image: url("{{ url_for('static', filename='images/background.webp') }}");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.2;
 }
 
 /* ── Animated background (sits on top of pattern) ── */
