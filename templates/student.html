@@ -8,6 +8,8 @@
 </head>
 <body>
 
+<div class="bg-pattern"></div>
+
 <div class="container">
 
   <header class="fs-header">
@@ -21,7 +23,6 @@
     <div class="divider"></div>
   </header>
 
-  <!-- Today's Menu -->
   <div class="card">
     <h2><span class="icon">🍛</span> Today's Menu</h2>
     <div class="menu-item">
@@ -38,7 +39,6 @@
     </div>
   </div>
 
-  <!-- Rate Items -->
   <div class="card">
     <h2><span class="icon">⭐</span> Rate Today's Food</h2>
     <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">Tap an emoji to share how you felt. You can rate each item once.</p>
@@ -53,7 +53,6 @@
     </table>
   </div>
 
-  <!-- Summary -->
   <div class="card">
     <h2><span class="icon">📊</span> Today's Feedback Summary</h2>
     <table>
@@ -76,7 +75,6 @@
 
 </div>
 
-<!-- Popup -->
 <div id="popup" class="popup hidden">
   <div class="popup-box">✨ Rating saved — thank you!</div>
 </div>
@@ -98,7 +96,6 @@ menuItems.forEach(item => {
   const emojisHtml = EMOJIS.map(e =>
     `<span class="emoji" title="${e.label}" data-item="${item}" data-val="${e.val}">${e.emoji}</span>`
   ).join("");
-
   const tr = document.createElement("tr");
   tr.innerHTML = `
     <td style="font-weight:500">${item}</td>
@@ -107,52 +104,42 @@ menuItems.forEach(item => {
   tbody.appendChild(tr);
 });
 
-// ── Popup ──
 function showPopup() {
   const p = document.getElementById("popup");
   p.classList.remove("hidden");
   setTimeout(() => p.classList.add("hidden"), 1500);
 }
 
-// ── Rate ──
 async function rate(item, rating) {
   if (sessionStorage.getItem("rated_" + item)) return;
-
   try {
     await fetch("/rate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ item, rating, date: today() })
     });
-
     sessionStorage.setItem("rated_" + item, rating);
     showPopup();
-
-    // Disable emojis for this item
     document.querySelectorAll(`[data-item="${item}"]`).forEach(e => {
       e.classList.add("disabled");
       if (parseInt(e.dataset.val) === rating) e.classList.add("selected");
     });
-
     loadSummary();
   } catch(err) {
     console.error("Rating failed:", err);
   }
 }
 
-// ── Today's date ──
 function today() {
   return new Date().toISOString().split("T")[0];
 }
 
-// ── Events ──
 document.addEventListener("click", e => {
   if (e.target.classList.contains("emoji") && !e.target.classList.contains("disabled")) {
     rate(e.target.dataset.item, parseInt(e.target.dataset.val));
   }
 });
 
-// ── Restore session state ──
 menuItems.forEach(item => {
   const rated = sessionStorage.getItem("rated_" + item);
   if (rated) {
@@ -163,18 +150,15 @@ menuItems.forEach(item => {
   }
 });
 
-// ── Load Summary ──
 async function loadSummary() {
   try {
     const res  = await fetch("/ratings/" + today());
     const data = await res.json();
     const tbody = document.getElementById("summaryBody");
-
     if (!Object.keys(data).length) {
       tbody.innerHTML = `<tr><td colspan="3" style="color:var(--muted);font-size:.85rem;text-align:center;padding:20px;">No ratings yet today.</td></tr>`;
       return;
     }
-
     tbody.innerHTML = Object.entries(data).map(([item, votes]) => {
       const avg = (votes.reduce((a,b)=>a+b,0)/votes.length).toFixed(1);
       return `
