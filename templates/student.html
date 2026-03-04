@@ -23,6 +23,7 @@
     <div class="divider"></div>
   </header>
 
+  <!-- Today's Menu -->
   <div class="card">
     <h2><span class="icon">🍛</span> Today's Menu</h2>
     <div class="menu-item">
@@ -39,6 +40,7 @@
     </div>
   </div>
 
+  <!-- Rate Items -->
   <div class="card">
     <h2><span class="icon">⭐</span> Rate Today's Food</h2>
     <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">Tap an emoji to share how you felt. You can rate each item once.</p>
@@ -53,6 +55,7 @@
     </table>
   </div>
 
+  <!-- Today's Summary -->
   <div class="card">
     <h2><span class="icon">📊</span> Today's Feedback Summary</h2>
     <table>
@@ -64,9 +67,25 @@
         </tr>
       </thead>
       <tbody id="summaryBody">
-        <tr><td colspan="3" style="color:var(--muted); font-size:0.85rem; text-align:center; padding:20px;">No ratings yet today.</td></tr>
+        <tr>
+          <td colspan="3" style="color:var(--muted); font-size:0.85rem; text-align:center; padding:20px;">
+            No ratings yet today.
+          </td>
+        </tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Yearly Dish Ratings Bar Chart -->
+  <div class="card">
+    <h2><span class="icon">📈</span> Yearly Dish Ratings</h2>
+    <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">
+      Average rating per dish across all time.
+    </p>
+    <canvas id="ratingsChart" height="160"></canvas>
+    <p id="chartEmpty" style="display:none; color:var(--muted); font-size:0.88rem; text-align:center; padding:24px 0;">
+      No ratings data yet.
+    </p>
   </div>
 
   <div class="footer-link">
@@ -75,10 +94,12 @@
 
 </div>
 
+<!-- Popup -->
 <div id="popup" class="popup hidden">
   <div class="popup-box">✨ Rating saved — thank you!</div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 const menuStr   = "{{ menu.breakfast }},{{ menu.lunch }},{{ menu.dinner }}";
 const menuItems = menuStr.split(",").map(s => s.trim()).filter(Boolean);
@@ -104,12 +125,14 @@ menuItems.forEach(item => {
   tbody.appendChild(tr);
 });
 
+// ── Popup ──
 function showPopup() {
   const p = document.getElementById("popup");
   p.classList.remove("hidden");
   setTimeout(() => p.classList.add("hidden"), 1500);
 }
 
+// ── Rate ──
 async function rate(item, rating) {
   if (sessionStorage.getItem("rated_" + item)) return;
   try {
@@ -125,21 +148,25 @@ async function rate(item, rating) {
       if (parseInt(e.dataset.val) === rating) e.classList.add("selected");
     });
     loadSummary();
+    loadYearlyChart();
   } catch(err) {
     console.error("Rating failed:", err);
   }
 }
 
+// ── Today's date ──
 function today() {
   return new Date().toISOString().split("T")[0];
 }
 
+// ── Click events ──
 document.addEventListener("click", e => {
   if (e.target.classList.contains("emoji") && !e.target.classList.contains("disabled")) {
     rate(e.target.dataset.item, parseInt(e.target.dataset.val));
   }
 });
 
+// ── Restore session state ──
 menuItems.forEach(item => {
   const rated = sessionStorage.getItem("rated_" + item);
   if (rated) {
@@ -150,17 +177,20 @@ menuItems.forEach(item => {
   }
 });
 
+// ── Load Today's Summary ──
 async function loadSummary() {
   try {
-    const res  = await fetch("/ratings/" + today());
-    const data = await res.json();
+    const res   = await fetch("/ratings/" + today());
+    const data  = await res.json();
     const tbody = document.getElementById("summaryBody");
+
     if (!Object.keys(data).length) {
       tbody.innerHTML = `<tr><td colspan="3" style="color:var(--muted);font-size:.85rem;text-align:center;padding:20px;">No ratings yet today.</td></tr>`;
       return;
     }
+
     tbody.innerHTML = Object.entries(data).map(([item, votes]) => {
-      const avg = (votes.reduce((a,b)=>a+b,0)/votes.length).toFixed(1);
+      const avg = (votes.reduce((a, b) => a + b, 0) / votes.length).toFixed(1);
       return `
         <tr>
           <td style="font-weight:500">${item}</td>
@@ -174,7 +204,82 @@ async function loadSummary() {
   }
 }
 
+// ── Load Yearly Bar Chart ──
+let chartInstance = null;
+
+async function loadYearlyChart() {
+  try {
+    const res   = await fetch("/ratings-summary");
+    const data  = await res.json();
+    const dishes  = Object.keys(data);
+    const ratings = Object.values(data);
+
+    if (!dishes.length) {
+      document.getElementById("chartEmpty").style.display = "block";
+      document.getElementById("ratingsChart").style.display = "none";
+      return;
+    }
+
+    document.getElementById("chartEmpty").style.display = "none";
+    document.getElementById("ratingsChart").style.display = "block";
+
+    const colors = [
+      "#FF4C1C","#FFB347","#4CAF50","#5C6BC0",
+      "#E53935","#FF9800","#558B2F","#795548",
+      "#FF7043","#66BB6A","#7986CB","#BCAAA4"
+    ];
+
+    if (chartInstance) {
+      chartInstance.data.labels   = dishes;
+      chartInstance.data.datasets[0].data             = ratings;
+      chartInstance.data.datasets[0].backgroundColor  = dishes.map((_, i) => colors[i % colors.length]);
+      chartInstance.update();
+      return;
+    }
+
+    chartInstance = new Chart(document.getElementById("ratingsChart"), {
+      type: "bar",
+      data: {
+        labels: dishes,
+        datasets: [{
+          label: "Avg Rating (out of 5)",
+          data: ratings,
+          backgroundColor: dishes.map((_, i) => colors[i % colors.length]),
+          borderRadius: 8,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.y} / 5`
+            }
+          }
+        },
+        scales: {
+          y: {
+            min: 0,
+            max: 5,
+            ticks: { stepSize: 1, color: "#8C7B6B" },
+            grid: { color: "rgba(0,0,0,0.06)" }
+          },
+          x: {
+            ticks: { color: "#4A2C1A", font: { weight: "600" } },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  } catch(e) {
+    console.error("Chart load failed:", e);
+  }
+}
+
 loadSummary();
+loadYearlyChart();
 </script>
 
 </body>
