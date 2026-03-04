@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 load_dotenv("email.env")
 import csv
-import io
 import threading
 from datetime import datetime, timezone
 from flask import Flask, render_template, request, jsonify, redirect, session, url_for, Response
@@ -25,7 +24,6 @@ menu = {
     "dinner":    "Chapathi, Paneer"
 }
 
-# In-memory ratings: { "YYYY-MM-DD": { "Idli": [5, 4, 3], ... } }
 RATINGS = {}
 ratings_lock = threading.Lock()
 
@@ -253,10 +251,11 @@ def student_login():
                            error="No account found with that email. Please register.", show="login")
 
 
-@app.route("/staff-logout")
-def staff_logout():
-    session.clear()
-    return redirect(url_for("staff_login"))
+@app.route("/logout")
+def logout():
+    session.pop("student_email", None)
+    session.pop("student_name", None)
+    return redirect(url_for("register"))
 
 
 # ─────────────────────────────────────────
@@ -373,7 +372,7 @@ def staff_login():
 
 @app.route("/staff-logout")
 def staff_logout():
-    session.pop("staff_logged_in", None)
+    session.clear()
     return redirect(url_for("staff_login"))
 
 
