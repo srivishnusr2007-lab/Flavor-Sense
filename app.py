@@ -1,11 +1,11 @@
-
 import os
 from dotenv import load_dotenv
 load_dotenv("email.env")
 import csv
+import io
 import threading
 from datetime import datetime, timezone
-from flask import Flask, render_template, request, jsonify, redirect, session, url_for
+from flask import Flask, render_template, request, jsonify, redirect, session, url_for, Response
 from werkzeug.security import generate_password_hash, check_password_hash
 import smtplib
 from email.message import EmailMessage
@@ -34,19 +34,19 @@ ratings_lock = threading.Lock()
 # ─────────────────────────────────────────
 STUDENTS_CSV = os.environ.get("STUDENTS_CSV", "students.csv")
 REVIEWS_CSV  = os.environ.get("REVIEWS_CSV",  "reviews.csv")
+RATINGS_CSV  = os.environ.get("RATINGS_CSV",  "ratings_data.csv")
 csv_lock = threading.Lock()
 
 # ─────────────────────────────────────────
-#  Staff Credentials (set via env vars!)
+#  Staff Credentials
 # ─────────────────────────────────────────
 STAFF_USER = os.environ.get("STAFF_USER", "staff")
-STAFF_PASS = os.environ.get("STAFF_PASS", "changeme123")   # plain-text env var
+STAFF_PASS = os.environ.get("STAFF_PASS", "changeme123")
 
 # ─────────────────────────────────────────
 #  CSV Helpers
 # ─────────────────────────────────────────
 def ensure_csv_files():
-    """Create CSV files with headers if they don't exist."""
     if not os.path.exists(STUDENTS_CSV):
         with open(STUDENTS_CSV, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=["name", "email", "password_hash"])
@@ -56,6 +56,11 @@ def ensure_csv_files():
         with open(REVIEWS_CSV, "w", newline="", encoding="utf-8") as f:
             fields = ["email", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
             writer = csv.DictWriter(f, fieldnames=fields)
+            writer.writeheader()
+
+    if not os.path.exists(RATINGS_CSV):
+        with open(RATINGS_CSV, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["date", "dish", "rating"])
             writer.writeheader()
 
 
@@ -99,9 +104,8 @@ def create_reviews_row(email):
 
 
 def update_review_for_today(email):
-    """Mark today's weekday column as 'yes' for the given student."""
     ensure_csv_files()
-    weekday = datetime.now(timezone.utc).strftime("%a")  # Mon, Tue, ...
+    weekday = datetime.now(timezone.utc).strftime("%a")
     fields  = ["email", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
     with csv_lock:
@@ -117,6 +121,14 @@ def update_review_for_today(email):
             writer = csv.DictWriter(f, fieldnames=fields)
             writer.writeheader()
             writer.writerows(rows)
+
+
+def save_rating_to_csv(date, item, rating):
+    ensure_csv_files()
+    with csv_lock:
+        with open(RATINGS_CSV, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["date", "dish", "rating"])
+            writer.writerow({"date": date, "dish": item, "rating": rating})
 
 
 # ─────────────────────────────────────────
@@ -155,7 +167,6 @@ def send_email(to_email, subject, body):
 #  Auth Helpers
 # ─────────────────────────────────────────
 def student_required(f):
-    """Decorator: redirect to register if student not logged in."""
     from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -166,7 +177,6 @@ def student_required(f):
 
 
 def staff_required(f):
-    """Decorator: redirect to staff login if not authenticated."""
     from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -191,7 +201,6 @@ def index():
 # ─────────────────────────────────────────
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    # Already logged in? Go to student page
     if session.get("student_email"):
         return redirect(url_for("student_review"))
 
@@ -200,7 +209,6 @@ def register():
         email    = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
 
-        # Validation
         if not name or not email or not password:
             return render_template("register_login.html",
                                    error="Please fill in all fields.", show="register")
@@ -272,7 +280,7 @@ def student_review():
 @app.route("/rate", methods=["POST"])
 @student_required
 def rate():
-    data   = request.get_json(silent=True)
+    data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Invalid JSON"}), 400
 
@@ -280,7 +288,6 @@ def rate():
     rating = data.get("rating")
     date   = data.get("date", "").strip()
 
-    # Validate
     if not item or not date:
         return jsonify({"error": "Missing item or date"}), 400
     try:
@@ -290,13 +297,12 @@ def rate():
     except (TypeError, ValueError):
         return jsonify({"error": "Rating must be an integer between 1 and 5"}), 400
 
-    # Save to in-memory store (thread-safe)
     with ratings_lock:
         if date not in RATINGS:
             RATINGS[date] = {}
         RATINGS[date].setdefault(item, []).append(rating)
 
-    # Mark today as reviewed in CSV
+    save_rating_to_csv(date, item, rating)
     update_review_for_today(session["student_email"])
 
     return jsonify({"message": "Rating saved", "item": item, "rating": rating})
@@ -304,9 +310,45 @@ def rate():
 
 @app.route("/ratings/<date>")
 def get_ratings(date):
-    """Return ratings for a specific date."""
     with ratings_lock:
         return jsonify(RATINGS.get(date, {}))
+
+
+# ─────────────────────────────────────────
+#  Routes: Ratings CSV Download & Summary
+# ─────────────────────────────────────────
+@app.route("/download-ratings")
+@staff_required
+def download_ratings():
+    if not os.path.exists(RATINGS_CSV):
+        return "No ratings data yet.", 404
+    with open(RATINGS_CSV, "r", encoding="utf-8") as f:
+        content = f.read()
+    return Response(
+        content,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=ratings_data.csv"}
+    )
+
+
+@app.route("/ratings-summary")
+def ratings_summary():
+    if not os.path.exists(RATINGS_CSV):
+        return jsonify({})
+    summary = {}
+    with csv_lock:
+        with open(RATINGS_CSV, newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                dish = row["dish"]
+                try:
+                    rating = int(row["rating"])
+                except ValueError:
+                    continue
+                if dish not in summary:
+                    summary[dish] = []
+                summary[dish].append(rating)
+    result = {dish: round(sum(vals)/len(vals), 2) for dish, vals in summary.items()}
+    return jsonify(result)
 
 
 # ─────────────────────────────────────────
@@ -368,7 +410,7 @@ def update_menu():
 @app.route("/send-reminders", methods=["POST"])
 @staff_required
 def send_reminders():
-    weekday = datetime.now(timezone.utc).strftime("%a")  # Mon, Tue, ...
+    weekday = datetime.now(timezone.utc).strftime("%a")
     rows    = load_reviews()
     sent    = 0
     skipped = 0
