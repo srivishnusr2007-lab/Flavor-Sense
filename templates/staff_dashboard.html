@@ -8,9 +8,9 @@
 </head>
 <body>
 
-<div class="container">
+<div class="bg-pattern"></div>
 
-  <!-- Staff Nav -->
+<div class="container">
   <div class="staff-nav" style="padding-top:32px;">
     <div>
       <p style="color:var(--muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Staff Dashboard</p>
@@ -22,14 +22,11 @@
   {% if menu_updated %}
   <div class="staff-message">✅ Menu updated successfully!</div>
   {% endif %}
-
   {% if message %}
   <div class="staff-message">📧 {{ message }}</div>
   {% endif %}
 
   <div class="cards-grid" style="margin-top:24px;">
-
-    <!-- Update Menu -->
     <div class="card">
       <h2><span class="icon">📋</span> Update Menu</h2>
       <form method="POST" action="/update-menu">
@@ -51,7 +48,6 @@
       </form>
     </div>
 
-    <!-- Send Reminders -->
     <div class="card">
       <h2><span class="icon">📧</span> Send Reminders</h2>
       <p style="font-size:0.88rem;color:var(--muted);margin-bottom:20px;">
@@ -66,28 +62,19 @@
         ⚠ Requires EMAIL_USER and EMAIL_PASS environment variables.
       </p>
     </div>
-
   </div>
 
-  <!-- Reviews Table -->
   <div class="card" style="margin-top:20px; overflow-x:auto;">
     <h2><span class="icon">📊</span> Weekly Review Tracker</h2>
     <p style="font-size:0.82rem; color:var(--muted); margin-bottom:16px;">
       Shows whether each student submitted a rating on each day of the week.
     </p>
-
     {% if reviews %}
     <table>
       <thead>
         <tr>
           <th>Email</th>
-          <th>Mon</th>
-          <th>Tue</th>
-          <th>Wed</th>
-          <th>Thu</th>
-          <th>Fri</th>
-          <th>Sat</th>
-          <th>Sun</th>
+          <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th>
         </tr>
       </thead>
       <tbody>
@@ -117,7 +104,6 @@
   <div class="footer-link">
     <a href="/student">View Student Portal →</a>
   </div>
-
 </div>
 
 </body>
